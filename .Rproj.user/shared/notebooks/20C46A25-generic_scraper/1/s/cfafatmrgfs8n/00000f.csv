@@ -1,0 +1,8 @@
+"0","#| label: example-single"
+"0",""
+"0","scoring_offense <- scrape_cfbstats("
+"0","  path = ""/leader/national/team/offense/split01/category09/sort01.html"","
+"0","  year = 2025"
+"0",")"
+"0",""
+"0","head(scoring_offense)"

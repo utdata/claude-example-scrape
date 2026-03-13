@@ -1,0 +1,4 @@
+"0","#| label: single-year"
+"0","scoring_2025 <- scrape_cfbstats_scoring(2025)"
+"0",""
+"0","head(scoring_2025)"

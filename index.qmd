@@ -1,0 +1,7 @@
+---
+title: "CFB Stats Scraper"
+---
+
+This project scrapes college football scoring offense data from [cfbstats.com](https://cfbstats.com).
+
+Navigate to the **Scraper** page to run the scraper and explore the data.

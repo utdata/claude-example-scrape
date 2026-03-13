@@ -1,0 +1,8 @@
+"0","#| label: example-player"
+"0",""
+"0","passing_leaders <- scrape_cfbstats("
+"0","  path = ""/leader/national/player/split01/category02/sort01.html"","
+"0","  year = 2025"
+"0",")"
+"0",""
+"0","head(passing_leaders)"

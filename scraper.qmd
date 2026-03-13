@@ -1,0 +1,77 @@
+---
+title: "CFB Scoring Offense Scraper"
+---
+
+```{r}
+#| label: setup
+#| message: false
+library(rvest)
+library(dplyr)
+```
+
+## Scraper Function
+
+The function below scrapes the national team scoring offense leaders from
+[cfbstats.com](https://cfbstats.com) for any given season year (2016–2025).
+
+```{r}
+#| label: scraper-function
+
+#' Scrape CFB scoring offense leaders from cfbstats.com
+#'
+#' @param year Integer. Season year (e.g., 2025). Available years: 2016–2025.
+#' @return A data frame with one row per team.
+scrape_cfbstats_scoring <- function(year) {
+  url <- sprintf(
+    "https://cfbstats.com/%d/leader/national/team/offense/split01/category09/sort01.html",
+    year
+  )
+
+  page <- tryCatch(
+    read_html(url),
+    error = function(e) stop("Failed to fetch page for year ", year, ": ", e$message)
+  )
+
+  tbl <- page |>
+    html_element("table.leaders") |>
+    html_table(header = TRUE)
+
+  names(tbl) <- c("rank", "team", "g", "td", "fg", "x1xp", "x2xp", "safety", "points", "points_per_g")
+
+  tbl |>
+    mutate(year = year) |>
+    mutate(across(c(rank, g, td, fg, x1xp, x2xp, safety, points), as.integer)) |>
+    mutate(points_per_g = as.numeric(points_per_g))
+}
+```
+
+## Example: Scrape a Single Year
+
+```{r}
+#| label: single-year
+scoring_2025 <- scrape_cfbstats_scoring(2025)
+
+head(scoring_2025)
+```
+
+## Example: Scrape Multiple Years
+
+```{r}
+#| label: multi-year
+
+scrape_cfbstats_scoring_years <- function(years) {
+  lapply(years, function(yr) {
+    message("Scraping ", yr, "...")
+    Sys.sleep(0.5)  # be polite to the server
+    scrape_cfbstats_scoring(yr)
+  }) |>
+    bind_rows()
+}
+
+scoring_multi <- scrape_cfbstats_scoring_years(2023:2025)
+
+scoring_multi |>
+  group_by(year) |>
+  slice_max(points_per_g, n = 5) |>
+  select(year, rank, team, points, points_per_g)
+```

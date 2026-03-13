@@ -1,0 +1,121 @@
+---
+title: "CFB Stats Generic Scraper"
+---
+
+```{r}
+#| label: setup
+#| message: false
+library(rvest)
+library(dplyr)
+library(janitor)
+```
+
+## Generic Scraper Function
+
+Pass any URL path from [cfbstats.com/2025/national/index.html](https://cfbstats.com/2025/national/index.html)
+along with a year. The path is the portion of the URL **after** the year segment.
+
+For example, for this URL:
+
+```
+https://cfbstats.com/2025/leader/national/team/offense/split01/category09/sort01.html
+```
+
+The path argument would be:
+
+```
+/leader/national/team/offense/split01/category09/sort01.html
+```
+
+```{r}
+#| label: scraper-function
+
+#' Scrape any stat leaderboard from cfbstats.com
+#'
+#' @param path Character. The URL path after the year, starting with "/".
+#'   Example: "/leader/national/team/offense/split01/category09/sort01.html"
+#' @param year Integer. Season year (e.g., 2025). Available years: 2016–2025.
+#' @return A data frame of the stats table with a `year` column appended.
+scrape_cfbstats <- function(path, year) {
+  # Strip leading slash if present so sprintf doesn't double up
+  path <- sub("^/", "", path)
+
+  url <- sprintf("https://cfbstats.com/%d/%s", year, path)
+
+  page <- tryCatch(
+    read_html(url),
+    error = function(e) stop("Failed to fetch: ", url, "\n", e$message)
+  )
+
+  tbl_node <- html_element(page, "table.leaders")
+
+  if (is.na(tbl_node)) {
+    stop("No table with class 'leaders' found at: ", url)
+  }
+
+  tbl_node |>
+    html_table(header = TRUE) |>
+    clean_names() |>            # snake_case column names via janitor
+    mutate(year = year, .before = 1)
+}
+```
+
+## Example Usage
+
+### Single page + year
+
+```{r}
+#| label: example-single
+
+scoring_offense <- scrape_cfbstats(
+  path = "/leader/national/team/offense/split01/category09/sort01.html",
+  year = 2025
+)
+
+head(scoring_offense)
+```
+
+### Loop over multiple years
+
+```{r}
+#| label: example-multi-year
+
+rushing_defense_multi <- lapply(2022:2025, function(yr) {
+  Sys.sleep(0.5)  # be polite to the server
+  scrape_cfbstats(
+    path = "/leader/national/team/defense/split01/category01/sort01.html",
+    year = yr
+  )
+}) |>
+  bind_rows()
+
+glimpse(rushing_defense_multi)
+```
+
+### Player stats example
+
+```{r}
+#| label: example-player
+
+passing_leaders <- scrape_cfbstats(
+  path = "/leader/national/player/split01/category02/sort01.html",
+  year = 2025
+)
+
+head(passing_leaders)
+```
+
+### Try another
+
+I tried to use copilot to complete but it didn't get the url right, but I fixed it manually.
+
+```{r}
+total_offense <- scrape_cfbstats(
+  path = "leader/national/team/offense/split01/category10/sort01.html",
+  year = 2025
+)
+
+# show the result
+head(total_offense)
+```
+
