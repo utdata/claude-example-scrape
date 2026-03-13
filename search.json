@@ -1,0 +1,58 @@
+[
+  {
+    "objectID": "generic_scraper.html",
+    "href": "generic_scraper.html",
+    "title": "CFB Stats Generic Scraper",
+    "section": "",
+    "text": "library(rvest)\nlibrary(dplyr)\nlibrary(janitor)"
+  },
+  {
+    "objectID": "generic_scraper.html#generic-scraper-function",
+    "href": "generic_scraper.html#generic-scraper-function",
+    "title": "CFB Stats Generic Scraper",
+    "section": "Generic Scraper Function",
+    "text": "Generic Scraper Function\nPass any URL path from cfbstats.com/2025/national/index.html along with a year. The path is the portion of the URL after the year segment.\nFor example, for this URL:\nhttps://cfbstats.com/2025/leader/national/team/offense/split01/category09/sort01.html\nThe path argument would be:\n/leader/national/team/offense/split01/category09/sort01.html\n\n#' Scrape any stat leaderboard from cfbstats.com\n#'\n#' @param path Character. The URL path after the year, starting with \"/\".\n#'   Example: \"/leader/national/team/offense/split01/category09/sort01.html\"\n#' @param year Integer. Season year (e.g., 2025). Available years: 2016–2025.\n#' @return A data frame of the stats table with a `year` column appended.\nscrape_cfbstats &lt;- function(path, year) {\n  # Strip leading slash if present so sprintf doesn't double up\n  path &lt;- sub(\"^/\", \"\", path)\n\n  url &lt;- sprintf(\"https://cfbstats.com/%d/%s\", year, path)\n\n  page &lt;- tryCatch(\n    read_html(url),\n    error = function(e) stop(\"Failed to fetch: \", url, \"\\n\", e$message)\n  )\n\n  tbl_node &lt;- html_element(page, \"table.leaders\")\n\n  if (is.na(tbl_node)) {\n    stop(\"No table with class 'leaders' found at: \", url)\n  }\n\n  tbl_node |&gt;\n    html_table(header = TRUE) |&gt;\n    clean_names() |&gt;            # snake_case column names via janitor\n    mutate(year = year, .before = 1)\n}"
+  },
+  {
+    "objectID": "generic_scraper.html#example-usage",
+    "href": "generic_scraper.html#example-usage",
+    "title": "CFB Stats Generic Scraper",
+    "section": "Example Usage",
+    "text": "Example Usage\n\nSingle page + year\n\nscoring_offense &lt;- scrape_cfbstats(\n  path = \"/leader/national/team/offense/split01/category09/sort01.html\",\n  year = 2025\n)\n\nhead(scoring_offense)\n\n# A tibble: 6 × 11\n   year     x name            g    td    fg  x1xp  x2xp safety points points_g\n  &lt;dbl&gt; &lt;int&gt; &lt;chr&gt;       &lt;int&gt; &lt;int&gt; &lt;int&gt; &lt;int&gt; &lt;int&gt;  &lt;int&gt;  &lt;int&gt;    &lt;dbl&gt;\n1  2025     1 North Texas    14    85    12    77     4      0    631     45.1\n2  2025     2 Notre Dame     12    70     5    63     2      1    504     42  \n3  2025     3 Indiana        16    87    19    87     0      0    666     41.6\n4  2025     4 Utah           13    72    11    68     1      1    537     41.3\n5  2025     5 USF            13    67    18    62     2      2    526     40.5\n6  2025     6 Tennessee      13    68    14    67     0      0    517     39.8\n\n\n\n\nLoop over multiple years\n\nrushing_defense_multi &lt;- lapply(2022:2025, function(yr) {\n  Sys.sleep(0.5)  # be polite to the server\n  scrape_cfbstats(\n    path = \"/leader/national/team/defense/split01/category01/sort01.html\",\n    year = yr\n  )\n}) |&gt;\n  bind_rows()\n\nglimpse(rushing_defense_multi)\n\nRows: 534\nColumns: 10\n$ year    &lt;int&gt; 2022, 2022, 2022, 2022, 2022, 2022, 2022, 2022, 2022, 2022, 20…\n$ x       &lt;int&gt; 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18,…\n$ name    &lt;chr&gt; \"Georgia\", \"James Madison\", \"Navy\", \"Marshall\", \"South Alabama…\n$ g       &lt;int&gt; 15, 11, 12, 13, 13, 13, 14, 13, 13, 13, 13, 13, 14, 12, 13, 13…\n$ att     &lt;int&gt; 401, 356, 355, 419, 367, 366, 421, 384, 443, 395, 390, 465, 44…\n$ yards   &lt;int&gt; 1155, 882, 1067, 1209, 1221, 1239, 1371, 1274, 1290, 1297, 130…\n$ avg     &lt;dbl&gt; 2.88, 2.48, 3.01, 2.89, 3.33, 3.39, 3.26, 3.32, 2.91, 3.28, 3.…\n$ td      &lt;int&gt; 7, 8, 7, 10, 8, 10, 10, 13, 14, 6, 13, 4, 12, 8, 17, 10, 14, 1…\n$ att_g   &lt;dbl&gt; 26.73, 32.36, 29.58, 32.23, 28.23, 28.15, 30.07, 29.54, 34.08,…\n$ yards_g &lt;dbl&gt; 77.00, 80.18, 88.92, 93.00, 93.92, 95.31, 97.93, 98.00, 99.23,…\n\n\n\n\nPlayer stats example\n\npassing_leaders &lt;- scrape_cfbstats(\n  path = \"/leader/national/player/split01/category02/sort01.html\",\n  year = 2025\n)\n\nhead(passing_leaders)\n\n# A tibble: 6 × 17\n   year     x name     team  yr    pos       g   att  comp   pct yards yards_att\n  &lt;dbl&gt; &lt;int&gt; &lt;chr&gt;    &lt;chr&gt; &lt;chr&gt; &lt;chr&gt; &lt;int&gt; &lt;int&gt; &lt;int&gt; &lt;dbl&gt; &lt;int&gt;     &lt;dbl&gt;\n1  2025     1 Drew Me… N Te… FR    QB       14   463   319  68.9  4379       9.5\n2  2025     2 Sawyer … Bayl… SR    QB       12   504   304  60.3  3681       7.3\n3  2025     3 Caden V… FAU   JR    QB       12   515   345  67    3641       7.1\n4  2025     4 Josh Ho… TCU   JR    QB       12   413   272  65.9  3472       8.4\n5  2025     5 Joe Fag… UConn SR    QB       12   413   285  69    3448       8.3\n6  2025     6 Jayden … USC   JR    QB       13   403   265  65.8  3711       9.2\n# ℹ 5 more variables: td &lt;int&gt;, int &lt;int&gt;, rating &lt;dbl&gt;, att_g &lt;dbl&gt;,\n#   yards_g &lt;dbl&gt;\n\n\n\n\nTry another\nI tried to use copilot to complete but it didn’t get the url right, but I fixed it manually.\n\ntotal_offense &lt;- scrape_cfbstats(\n  path = \"leader/national/team/offense/split01/category10/sort01.html\",\n  year = 2025\n)\n\n# show the result\nhead(total_offense)\n\n# A tibble: 6 × 10\n   year     x name          g rush_yards pass_yards plays total_yards yards_play\n  &lt;dbl&gt; &lt;int&gt; &lt;chr&gt;     &lt;int&gt;      &lt;int&gt;      &lt;int&gt; &lt;int&gt;       &lt;int&gt;      &lt;dbl&gt;\n1  2025     1 North Te…    14       2722       4452   992        7174       7.23\n2  2025     2 Ole Miss     15       2645       4700  1099        7345       6.68\n3  2025     3 USF          13       2757       3596   911        6353       6.97\n4  2025     4 Utah         13       3462       2816   948        6278       6.62\n5  2025     5 Texas St…    13       2887       3260   920        6147       6.68\n6  2025     6 Florida …    12       2624       3041   845        5665       6.7 \n# ℹ 1 more variable: yards_g &lt;dbl&gt;"
+  },
+  {
+    "objectID": "index.html",
+    "href": "index.html",
+    "title": "CFB Stats Scraper",
+    "section": "",
+    "text": "This project scrapes college football scoring offense data from cfbstats.com.\nNavigate to the Scraper page to run the scraper and explore the data."
+  },
+  {
+    "objectID": "scraper.html",
+    "href": "scraper.html",
+    "title": "CFB Scoring Offense Scraper",
+    "section": "",
+    "text": "library(rvest)\nlibrary(dplyr)"
+  },
+  {
+    "objectID": "scraper.html#scraper-function",
+    "href": "scraper.html#scraper-function",
+    "title": "CFB Scoring Offense Scraper",
+    "section": "Scraper Function",
+    "text": "Scraper Function\nThe function below scrapes the national team scoring offense leaders from cfbstats.com for any given season year (2016–2025).\n\n#' Scrape CFB scoring offense leaders from cfbstats.com\n#'\n#' @param year Integer. Season year (e.g., 2025). Available years: 2016–2025.\n#' @return A data frame with one row per team.\nscrape_cfbstats_scoring &lt;- function(year) {\n  url &lt;- sprintf(\n    \"https://cfbstats.com/%d/leader/national/team/offense/split01/category09/sort01.html\",\n    year\n  )\n\n  page &lt;- tryCatch(\n    read_html(url),\n    error = function(e) stop(\"Failed to fetch page for year \", year, \": \", e$message)\n  )\n\n  tbl &lt;- page |&gt;\n    html_element(\"table.leaders\") |&gt;\n    html_table(header = TRUE)\n\n  names(tbl) &lt;- c(\"rank\", \"team\", \"g\", \"td\", \"fg\", \"x1xp\", \"x2xp\", \"safety\", \"points\", \"points_per_g\")\n\n  tbl |&gt;\n    mutate(year = year) |&gt;\n    mutate(across(c(rank, g, td, fg, x1xp, x2xp, safety, points), as.integer)) |&gt;\n    mutate(points_per_g = as.numeric(points_per_g))\n}"
+  },
+  {
+    "objectID": "scraper.html#example-scrape-a-single-year",
+    "href": "scraper.html#example-scrape-a-single-year",
+    "title": "CFB Scoring Offense Scraper",
+    "section": "Example: Scrape a Single Year",
+    "text": "Example: Scrape a Single Year\n\nscoring_2025 &lt;- scrape_cfbstats_scoring(2025)\n\nhead(scoring_2025)\n\n# A tibble: 6 × 11\n   rank team          g    td    fg  x1xp  x2xp safety points points_per_g  year\n  &lt;int&gt; &lt;chr&gt;     &lt;int&gt; &lt;int&gt; &lt;int&gt; &lt;int&gt; &lt;int&gt;  &lt;int&gt;  &lt;int&gt;        &lt;dbl&gt; &lt;dbl&gt;\n1     1 North Te…    14    85    12    77     4      0    631         45.1  2025\n2     2 Notre Da…    12    70     5    63     2      1    504         42    2025\n3     3 Indiana      16    87    19    87     0      0    666         41.6  2025\n4     4 Utah         13    72    11    68     1      1    537         41.3  2025\n5     5 USF          13    67    18    62     2      2    526         40.5  2025\n6     6 Tennessee    13    68    14    67     0      0    517         39.8  2025"
+  },
+  {
+    "objectID": "scraper.html#example-scrape-multiple-years",
+    "href": "scraper.html#example-scrape-multiple-years",
+    "title": "CFB Scoring Offense Scraper",
+    "section": "Example: Scrape Multiple Years",
+    "text": "Example: Scrape Multiple Years\n\nscrape_cfbstats_scoring_years &lt;- function(years) {\n  lapply(years, function(yr) {\n    message(\"Scraping \", yr, \"...\")\n    Sys.sleep(0.5)  # be polite to the server\n    scrape_cfbstats_scoring(yr)\n  }) |&gt;\n    bind_rows()\n}\n\nscoring_multi &lt;- scrape_cfbstats_scoring_years(2023:2025)\n\nScraping 2023...\n\n\nScraping 2024...\n\n\nScraping 2025...\n\nscoring_multi |&gt;\n  group_by(year) |&gt;\n  slice_max(points_per_g, n = 5) |&gt;\n  select(year, rank, team, points, points_per_g)\n\n# A tibble: 15 × 5\n# Groups:   year [3]\n    year  rank team        points points_per_g\n   &lt;int&gt; &lt;int&gt; &lt;chr&gt;        &lt;int&gt;        &lt;dbl&gt;\n 1  2023     1 LSU            592         45.5\n 2  2023     2 Oregon         619         44.2\n 3  2023     3 USC            544         41.8\n 4  2023     4 Oklahoma       542         41.7\n 5  2023     5 Georgia        562         40.1\n 6  2024     1 Miami (FL)     571         43.9\n 7  2024     2 Indiana        537         41.3\n 8  2024     3 Ole Miss       502         38.6\n 9  2024     4 Texas Tech     489         37.6\n10  2024     5 Boise State    522         37.3\n11  2025     1 North Texas    631         45.1\n12  2025     2 Notre Dame     504         42  \n13  2025     3 Indiana        666         41.6\n14  2025     4 Utah           537         41.3\n15  2025     5 USF            526         40.5"
+  }
+]
